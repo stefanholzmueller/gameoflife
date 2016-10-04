@@ -13,14 +13,13 @@ instance arbitraryCell :: Arbitrary RandomCell where
   arbitrary = do
               x <- chooseInt 0 99
               y <- chooseInt 0 99
-              pure $ RandomCell $ L.cell x y
+              pure $ RandomCell $ Cell { x, y }
 
 main :: forall eff. QC eff Unit
 main = do
     quickCheck everyCellHasEightNeighbors
     quickCheck aCellsNeighborHasNeighborsContainingTheCell
   where
-    origin = L.cell 0 0
     everyCellHasEightNeighbors (RandomCell cell) =
         length (L.neighbors cell) == 8
     aCellsNeighborHasNeighborsContainingTheCell (RandomCell cell) =

@@ -14,16 +14,18 @@ import Data.Int (toNumber)
 import Halogen.Util (awaitBody, runHalogenAff)
 import Prelude hiding (top)
 
-
 data Query a = Tick a
 
 type State = { cells :: Array L.Cell }
 
+cell :: Int -> Int -> L.Cell
+cell x y = L.Cell { x: x, y: y }
+
 initialState :: State
-initialState = { cells: [ L.cell 2 1, L.cell 3 2, L.cell 3 3, L.cell 2 3, L.cell 1 3 -- glider
-                        , L.cell 11 2, L.cell 12 2, L.cell 13 2 -- blinker
-                        , L.cell 2 11, L.cell 3 11, L.cell 2 12, L.cell 3 12 -- block
-                        , L.cell 31 20, L.cell 32 20, L.cell 30 21, L.cell 31 21, L.cell 31 22 -- r-pentomino
+initialState = { cells: [ cell 2 1, cell 3 2, cell 3 3, cell 2 3, cell 1 3 -- glider
+                        , cell 11 2, cell 12 2, cell 13 2 -- blinker
+                        , cell 2 11, cell 3 11, cell 2 12, cell 3 12 -- block
+                        , cell 31 20, cell 32 20, cell 30 21, cell 31 21, cell 31 22 -- r-pentomino
                         ] }
 
 ui :: forall g. H.Component State Query g

@@ -5,14 +5,12 @@ import Control.MonadZero (guard)
 import Data.Array (difference, filter, intersect, length, nub, union)
 
 data Cell = Cell { x :: Int, y :: Int }
+
 instance eqCell :: Eq Cell where
   eq (Cell c1) (Cell c2) = c1.x == c2.x && c1.y == c2.y
 
-cell :: Int -> Int -> Cell
-cell x y = Cell { x: x, y: y }
-
 neighbors :: Cell -> Array Cell
-neighbors (Cell { x, y }) = map (\d -> cell (d.dx + x) (d.dy + y)) directions
+neighbors (Cell { x, y }) = map (\d -> Cell { x: d.dx + x, y: d.dy + y }) directions
   where
     deltas = [ -1, 0, 1 ]
     directions = do dx <- deltas
