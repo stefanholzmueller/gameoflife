@@ -2,7 +2,7 @@ module Life where
 
 import Prelude
 import Control.MonadZero (guard)
-import Data.Array (difference, nub, filter, length, intersect, union)
+import Data.Array (difference, filter, intersect, length, nub, union)
 
 data Cell = Cell { x :: Int, y :: Int }
 instance eqCell :: Eq Cell where
@@ -12,7 +12,7 @@ cell :: Int -> Int -> Cell
 cell x y = Cell { x: x, y: y }
 
 neighbors :: Cell -> Array Cell
-neighbors (Cell { x, y }) = map (\d -> cell (d.dx + x) (d.dy + y) ) directions
+neighbors (Cell { x, y }) = map (\d -> cell (d.dx + x) (d.dy + y)) directions
   where
     deltas = [ -1, 0, 1 ]
     directions = do dx <- deltas
