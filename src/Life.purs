@@ -2,15 +2,37 @@ module Life where
 
 import Prelude
 import Control.MonadZero (guard)
-import Data.Array (difference, filter, intersect, length, nub, union)
+import Data.Array (filter, intersectBy, length)
 
-data Cell = Cell { x :: Int, y :: Int }
+type Coords = { x :: Int, y :: Int }
+data CellState = Alive | Dead Int | Zombie
+data Cell = Cell Coords CellState
+type CellContext = Int  -- number of alive neighbors
+type Population = Array Cell
 
-instance eqCell :: Eq Cell where
-  eq (Cell c1) (Cell c2) = c1.x == c2.x && c1.y == c2.y
+isAlive :: Cell -> Boolean
+isAlive (Cell _ Alive) = true
+isAlive (Cell _ _)     = false
 
-neighbors :: Cell -> Array Cell
-neighbors (Cell { x, y }) = map (\d -> Cell { x: d.dx + x, y: d.dy + y }) directions
+getCoords :: Cell -> Coords
+getCoords (Cell coords _) = coords
+
+equalCoords :: Coords -> Coords -> Boolean
+equalCoords c1 c2 = c1.x == c2.x && c1.y == c2.y
+
+gameOfLife :: Population -> Population
+gameOfLife = nextGen neighbors stateChange
+
+nextGen :: (Coords -> Array Coords) -> (CellState -> CellContext -> CellState) -> Population -> Population
+nextGen neighborsConfig stateChangeConfig population = map nextState population <> offspring
+  where
+    coordsOfAliveCells = map getCoords (filter isAlive population)
+    numberOfAliveNeighbors coords = length (intersectBy equalCoords coordsOfAliveCells (neighbors coords))
+    nextState (Cell coords state) = Cell coords (stateChangeConfig state (numberOfAliveNeighbors coords))
+    offspring = [] -- TODO
+
+neighbors :: Coords -> Array Coords
+neighbors { x, y } = map (\d -> { x: d.dx + x, y: d.dy + y }) directions
   where
     deltas = [ -1, 0, 1 ]
     directions = do dx <- deltas
@@ -18,13 +40,11 @@ neighbors (Cell { x, y }) = map (\d -> Cell { x: d.dx + x, y: d.dy + y }) direct
                     guard $ not (dx == 0 && dy == 0)
                     pure { dx, dy }
 
-tick :: (Cell -> Array Cell) -> (Int -> Boolean) -> (Int -> Boolean) -> Array Cell -> Array Cell
-tick neighborsFn survivePred reproducePred livingCells = union survivors offspring
-  where
-    survivors = filter (livingNeighborsCount >>> survivePred) livingCells
-    livingNeighborsCount c = length (intersect (neighbors c) livingCells)
-    offspring = filter (livingNeighborsCount >>> reproducePred) neighboringDeadCells
-    neighboringDeadCells = difference (nub (livingCells >>= neighbors)) livingCells
-
-tick' :: Array Cell -> Array Cell
-tick' = tick neighbors (\n -> n == 2 || n == 3) (_ == 3)
+stateChange :: CellState -> CellContext -> CellState
+stateChange Alive n | n == 2 || n == 3            = Alive
+                    | otherwise                   = Dead 0
+stateChange (Dead since) n | since == 1 && n == 3 = Alive
+                           | since == 2           = Zombie -- TODO 30% chance
+                           | otherwise            = Dead (since+1)
+stateChange Zombie n | n > 3                      = Dead 0
+                     | otherwise                  = Zombie

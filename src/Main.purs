@@ -19,7 +19,12 @@ data Query a = Tick a
 type State = { cells :: Array L.Cell }
 
 cell :: Int -> Int -> L.Cell
-cell x y = L.Cell { x: x, y: y }
+cell x y = L.Cell { x: x, y: y } L.Alive
+
+toString :: L.CellState -> String
+toString L.Alive    = "alive"
+toString (L.Dead _) = "dead"
+toString L.Zombie   = "zombie"
 
 initialState :: State
 initialState = { cells: [ cell 2 1, cell 3 2, cell 3 3, cell 2 3, cell 1 3 -- glider
@@ -31,19 +36,18 @@ initialState = { cells: [ cell 2 1, cell 3 2, cell 3 3, cell 2 3, cell 1 3 -- gl
 ui :: forall g. H.Component State Query g
 ui = H.component { render, eval }
   where
+    render :: State -> H.ComponentHTML Query
+    render state = HH.div_ (map renderCell state.cells)
+      where
+        renderCell (L.Cell {x, y} state) = HH.div [ HP.class_ $ HC.className $ toString state
+                                                  , HS.style do left $ px $ toNumber $ 32 * x
+                                                                top $ px $ toNumber $ 32 * y
+                                                  ] []
 
-  render :: State -> H.ComponentHTML Query
-  render state = HH.div_ (map renderCell state.cells)
-    where
-    renderCell (L.Cell {x, y}) = HH.div [ HP.class_ $ HC.className "cell"
-                                      , HS.style do left $ px $ toNumber $ 32 * x
-                                                    top $ px $ toNumber $ 32 * y
-                                      ] []
-
-  eval :: Query ~> H.ComponentDSL State Query g
-  eval (Tick next) = do
-    H.modify (\state -> { cells: L.tick' state.cells })
-    pure next
+    eval :: Query ~> H.ComponentDSL State Query g
+    eval (Tick next) = do
+      H.modify (\state -> { cells: L.gameOfLife state.cells })
+      pure next
 
 main :: Eff (H.HalogenEffects ()) Unit
 main = runHalogenAff do
