@@ -19,7 +19,7 @@ data Query a = Tick a
 type State = { cells :: Array L.Cell }
 
 cell :: Int -> Int -> L.Cell
-cell x y = L.Cell { x: x, y: y } L.Alive
+cell x y = L.Cell (L.Coords { x: x, y: y }) L.Alive
 
 toString :: L.CellState -> String
 toString L.Alive    = "alive"
@@ -39,10 +39,10 @@ ui = H.component { render, eval }
     render :: State -> H.ComponentHTML Query
     render state = HH.div_ (map renderCell state.cells)
       where
-        renderCell (L.Cell {x, y} state) = HH.div [ HP.class_ $ HC.className $ toString state
-                                                  , HS.style do left $ px $ toNumber $ 32 * x
-                                                                top $ px $ toNumber $ 32 * y
-                                                  ] []
+        renderCell (L.Cell (L.Coords {x, y}) state) = HH.div [ HP.class_ $ HC.className $ toString state
+                                                             , HS.style do left $ px $ toNumber $ 32 * x
+                                                                           top $ px $ toNumber $ 32 * y
+                                                             ] []
 
     eval :: Query ~> H.ComponentDSL State Query g
     eval (Tick next) = do
