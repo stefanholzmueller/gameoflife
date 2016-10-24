@@ -17,7 +17,6 @@ import Halogen.Util (awaitBody, runHalogenAff)
 import Prelude hiding (top)
 
 data Query a = Tick a
-
 type State = L.Population
 
 cell :: Int -> Int -> L.Cell
@@ -48,7 +47,9 @@ ui = H.component { render, eval }
 
     eval :: Query ~> H.ComponentDSL State Query g
     eval (Tick next) = do
-      H.modify (\state -> unsafePerformEff (L.gameOfLife state))  -- TODO unsafe
+      oldState <- H.get
+      let s = unsafePerformEff (L.gameOfLife oldState)
+      H.set s
       pure next
 
 main :: Eff (H.HalogenEffects (random :: RANDOM)) Unit
