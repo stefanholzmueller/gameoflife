@@ -11,12 +11,31 @@ import Data.Traversable (sequence, traverse)
 newtype Coords = Coords { x :: Int, y :: Int }
 data CellState = Alive | Dead Int | Zombie
 data Cell = Cell Coords CellState
-type CellContext = Int  -- number of alive neighbors
 type Population = Array Cell
+type CellContext = Int  -- number of alive neighbors
 type StateChangeConfig = CellState -> CellContext -> Eff (random :: RANDOM) CellState
 
 instance eqCoords :: Eq Coords
   where eq (Coords c1) (Coords c2) = c1.x == c2.x && c1.y == c2.y
+
+instance showCoords :: Show Coords
+  where show (Coords { x, y }) = "(" <> show x <> ", " <> show y <> ")"
+
+instance eqCell :: Eq Cell
+  where eq (Cell c1 s1) (Cell c2 s2) = c1 == c2
+
+instance showCell :: Show Cell
+  where show (Cell coords state) = (show state) <> show coords
+
+instance showCellState :: Show CellState
+  where show Alive        = "Alive"
+        show (Dead since) = "Dead" <> show since
+        show Zombie       = "ZOMBIE"
+
+--instance showPopulation :: Show Population
+--  where show population =
+--   where
+--     coordsOfAliveCells = map getCoords (filter isAlive population)
 
 isAlive :: Cell -> Boolean
 isAlive (Cell _ Alive) = true
@@ -31,17 +50,19 @@ gameOfLife = nextGen neighbors stateChange
 nextGen :: (Coords -> Array Coords) -> StateChangeConfig -> Population -> Eff (random :: RANDOM) Population
 nextGen neighborsConfig stateChangeConfig population = lift2 append (traverse nextState population) offspring
   where
-    coordsOfAliveCells = (map getCoords (filter isAlive population)) :: Array Coords
-    numberOfAliveNeighbors coords = (length (intersect coordsOfAliveCells (neighbors coords))) :: Int
-    nextState (Cell coords state) = (map (\s -> Cell coords s) (stateChangeConfig state (numberOfAliveNeighbors coords))) :: Eff (random :: RANDOM) Cell
+    coordsOfAliveCells = map getCoords (filter isAlive population)
+    numberOfAliveNeighbors coords = length (intersect coordsOfAliveCells (neighbors coords))
+
+    nextState (Cell coords state) = (map (\s -> Cell coords s) (stateChangeConfig state (numberOfAliveNeighbors coords)))
+
     populationCoords = (map getCoords population) :: Array Coords
     neighboringCoords = (difference (nub (populationCoords >>= neighbors)) populationCoords) :: Array Coords
-    nextStateInNeighboringCoords coords = (map (\s -> Cell coords s) (stateChangeConfig (Dead 0) (numberOfAliveNeighbors coords))) :: Eff (random :: RANDOM) Cell
-    neighboringCells = (sequence (map nextStateInNeighboringCoords neighboringCoords)) :: Eff (random :: RANDOM) (Array Cell)
-    offspring = (map (\ss -> filter isAlive ss) neighboringCells) :: Eff (random :: RANDOM) (Array Cell)
+    nextStateInNeighboringCoords coords = (map (\s -> Cell coords s) (stateChangeConfig (Dead 0) (numberOfAliveNeighbors coords)))
+    neighboringCells = (sequence (map nextStateInNeighboringCoords neighboringCoords))
+    offspring = (map (\ss -> filter isAlive ss) neighboringCells)
 
 neighbors :: Coords -> Array Coords
-neighbors (Coords { x, y }) = map (\d -> Coords { x: d.dx + x, y: d.dy + y }) directions
+neighbors (Coords { x, y }) = map (\d -> Coords { x: x + d.dx, y: y + d.dy }) directions
   where
     deltas = [ -1, 0, 1 ]
     directions = do dx <- deltas
@@ -52,7 +73,7 @@ neighbors (Coords { x, y }) = map (\d -> Coords { x: d.dx + x, y: d.dy + y }) di
 stateChange :: StateChangeConfig
 stateChange Alive n | n == 2 || n == 3  = pure Alive
                     | otherwise         = pure (Dead 0)
-stateChange (Dead since) n | since == 2 = map (\r -> if r < 0.3 then Zombie else Dead (since+1)) (randomRange 0.0 1.0)
+stateChange (Dead since) n | since == 1 = map (\r -> if r < 0.3 then Zombie else Dead (since+1)) (randomRange 0.0 1.0)
                            | n == 3     = pure Alive
                            | otherwise  = pure (Dead (since+1))
 stateChange Zombie n | n > 3            = pure (Dead 0)
