@@ -1,12 +1,11 @@
 module Life where
 
 import Prelude
-import Control.Apply (lift2)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Random (randomRange, RANDOM)
 import Control.MonadZero (guard)
 import Data.Array (difference, filter, intersect, length, nub)
-import Data.Traversable (sequence, traverse)
+import Data.Traversable (traverse)
 
 newtype Coords = Coords { x :: Int, y :: Int }
 data CellState = Alive | Dead Int | Zombie
@@ -48,18 +47,21 @@ gameOfLife :: Population -> Eff (random :: RANDOM) Population
 gameOfLife = nextGen neighbors stateChange
 
 nextGen :: (Coords -> Array Coords) -> StateChangeConfig -> Population -> Eff (random :: RANDOM) Population
-nextGen neighborsConfig stateChangeConfig population = lift2 append (traverse nextState population) offspring
+nextGen neighborsConfig stateChangeConfig population = do updatedPopulation <- traverse nextState population
+                                                          neighboringCells <- traverse nextStateInNeighboringCoords neighboringCoords
+                                                          let newAliveCells = filter isAlive neighboringCells
+                                                          pure (updatedPopulation <> newAliveCells)
   where
     coordsOfAliveCells = map getCoords (filter isAlive population)
     numberOfAliveNeighbors coords = length (intersect coordsOfAliveCells (neighbors coords))
 
-    nextState (Cell coords state) = (map (\s -> Cell coords s) (stateChangeConfig state (numberOfAliveNeighbors coords)))
+    nextState (Cell coords state) = do newState <- stateChangeConfig state (numberOfAliveNeighbors coords)
+                                       pure (Cell coords newState)
 
-    populationCoords = (map getCoords population) :: Array Coords
-    neighboringCoords = (difference (nub (populationCoords >>= neighbors)) populationCoords) :: Array Coords
-    nextStateInNeighboringCoords coords = (map (\s -> Cell coords s) (stateChangeConfig (Dead 0) (numberOfAliveNeighbors coords)))
-    neighboringCells = (sequence (map nextStateInNeighboringCoords neighboringCoords))
-    offspring = (map (\ss -> filter isAlive ss) neighboringCells)
+    populationCoords = map getCoords population
+    neighboringCoords = difference (nub (populationCoords >>= neighbors)) populationCoords
+
+    nextStateInNeighboringCoords coords = nextState (Cell coords (Dead 0))
 
 neighbors :: Coords -> Array Coords
 neighbors (Coords { x, y }) = map (\d -> Coords { x: x + d.dx, y: y + d.dy }) directions
