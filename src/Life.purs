@@ -14,8 +14,7 @@ type Population = Array Cell
 type CellContext = Int  -- number of alive neighbors
 type StateChangeConfig = CellState -> CellContext -> Eff (random :: RANDOM) CellState
 
-instance eqCoords :: Eq Coords
-  where eq (Coords c1) (Coords c2) = c1.x == c2.x && c1.y == c2.y
+derive instance eqCoords :: Eq Coords
 
 instance showCoords :: Show Coords
   where show (Coords { x, y }) = "(" <> show x <> ", " <> show y <> ")"
