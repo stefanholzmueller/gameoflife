@@ -3,7 +3,7 @@ module Test.Main where
 import Prelude
 import Life as L
 import Control.Monad.Eff.Unsafe (unsafePerformEff)
-import Data.Array (filter, length)
+import Data.Array (length)
 import Data.Foldable (all, elem)
 import Test.QuickCheck (assertEquals, quickCheck', quickCheck, QC)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
@@ -31,7 +31,7 @@ main = do
           let ns = L.neighbors n
           pure (elem coords ns)
 
-    gliderInFifthGeneration (RandomCoords _) = assertEquals [] []
+    gliderInFifthGeneration (RandomCoords _) = assertEquals gen5 gen5
       where
         cell x y = L.Cell (L.Coords { x: x, y: y }) L.Alive
         initial = [ cell 2 1, cell 3 2, cell 3 3, cell 2 3, cell 1 3 ]
