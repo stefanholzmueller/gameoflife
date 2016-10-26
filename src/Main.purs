@@ -11,7 +11,6 @@ import CSS.Size (px)
 import Control.Monad.Aff (Aff, later')
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Random (RANDOM)
-import Control.Monad.Eff.Unsafe (unsafePerformEff)
 import Data.Int (toNumber)
 import Halogen.Util (awaitBody, runHalogenAff)
 import Prelude hiding (top)
@@ -34,7 +33,7 @@ initialState = [ cell 2 1, cell 3 2, cell 3 3, cell 2 3, cell 1 3 -- glider
                , cell 31 20, cell 32 20, cell 30 21, cell 31 21, cell 31 22 -- r-pentomino
                ]
 
-ui :: forall g. H.Component State Query g
+ui :: forall eff. H.Component State Query (Aff (random :: RANDOM | eff))
 ui = H.component { render, eval }
   where
     render :: State -> H.ComponentHTML Query
@@ -45,14 +44,14 @@ ui = H.component { render, eval }
                                                                            top $ px $ toNumber $ 32 * y
                                                              ] []
 
-    eval :: Query ~> H.ComponentDSL State Query g
+    eval :: Query ~> H.ComponentDSL State Query (Aff (random :: RANDOM | eff))
     eval (Tick next) = do
       oldState <- H.get
-      let s = unsafePerformEff (L.gameOfLife oldState)
-      H.set s
+      newState <- H.fromEff (L.gameOfLife oldState)
+      H.set newState
       pure next
 
-main :: Eff (H.HalogenEffects (random :: RANDOM)) Unit
+main :: forall eff. Eff (H.HalogenEffects (random :: RANDOM | eff)) Unit
 main = runHalogenAff do
   body <- awaitBody
   driver <- H.runUI ui initialState body

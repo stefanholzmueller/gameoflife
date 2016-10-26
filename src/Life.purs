@@ -12,7 +12,7 @@ data CellState = Alive | Dead Int | Zombie
 data Cell = Cell Coords CellState
 type Population = Array Cell
 type CellContext = Int  -- number of alive neighbors
-type StateChangeConfig = CellState -> CellContext -> Eff (random :: RANDOM) CellState
+type StateChangeConfig eff = CellState -> CellContext -> Eff (random :: RANDOM | eff) CellState
 
 derive instance eqCoords :: Eq Coords
 
@@ -42,10 +42,10 @@ isAlive (Cell _ _)     = false
 getCoords :: Cell -> Coords
 getCoords (Cell coords _) = coords
 
-gameOfLife :: Population -> Eff (random :: RANDOM) Population
+gameOfLife :: forall eff. Population -> Eff (random :: RANDOM | eff) Population
 gameOfLife = nextGen neighbors stateChange
 
-nextGen :: (Coords -> Array Coords) -> StateChangeConfig -> Population -> Eff (random :: RANDOM) Population
+nextGen :: forall eff. (Coords -> Array Coords) -> StateChangeConfig eff -> Population -> Eff (random :: RANDOM | eff) Population
 nextGen neighborsConfig stateChangeConfig population = do updatedPopulation <- traverse nextState population
                                                           neighboringCells <- traverse nextStateInNeighboringCoords neighboringCoords
                                                           let newAliveCells = filter isAlive neighboringCells
@@ -71,7 +71,7 @@ neighbors (Coords { x, y }) = map (\d -> Coords { x: x + d.dx, y: y + d.dy }) di
                     guard $ not (dx == 0 && dy == 0)
                     pure { dx, dy }
 
-stateChange :: StateChangeConfig
+stateChange :: forall eff. StateChangeConfig eff
 stateChange Alive n | n == 2 || n == 3  = pure Alive
                     | otherwise         = pure (Dead 0)
 stateChange (Dead since) n | since == 1 = map (\r -> if r < 0.3 then Zombie else Dead (since+1)) (randomRange 0.0 1.0)
