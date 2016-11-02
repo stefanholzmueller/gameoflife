@@ -68,14 +68,14 @@ neighbors (Coords { x, y }) = map (\d -> Coords { x: x + d.dx, y: y + d.dy }) di
     deltas = [ -1, 0, 1 ]
     directions = do dx <- deltas
                     dy <- deltas
-                    guard $ not (dx == 0 && dy == 0)
+                    guard (dx /= 0 || dy /= 0)
                     pure { dx, dy }
 
 stateChange :: forall eff. StateChangeConfig eff
 stateChange Alive n | n == 2 || n == 3  = pure Alive
                     | otherwise         = pure (Dead 0)
-stateChange (Dead since) n | since == 1 = map (\r -> if r < 0.3 then Zombie else Dead (since+1)) (randomRange 0.0 1.0)
-                           | n == 3     = pure Alive
+stateChange (Dead since) n | n == 3     = pure Alive
+                           | since == 1 = map (\r -> if r < 0.3 then Zombie else Dead (since+1)) (randomRange 0.0 1.0)
                            | otherwise  = pure (Dead (since+1))
 stateChange Zombie n | n > 3            = pure (Dead 0)
                      | otherwise        = pure Zombie

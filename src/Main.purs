@@ -55,7 +55,7 @@ main :: forall eff. Eff (H.HalogenEffects (random :: RANDOM | eff)) Unit
 main = runHalogenAff do
   body <- awaitBody
   driver <- H.runUI ui initialState body
-  setInterval 1000 $ driver (H.action Tick)
+  setInterval 1000 (driver (H.action Tick))
 
 setInterval :: forall e a. Int -> Aff e a -> Aff e Unit
 setInterval ms a = later' ms $ do
