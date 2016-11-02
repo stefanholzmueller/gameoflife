@@ -12,9 +12,7 @@ import Control.Monad.Aff (Aff, later')
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Random (RANDOM)
 import Data.Int (toNumber)
-import Data.Tuple (Tuple(Tuple))
 import Halogen.Util (awaitBody, runHalogenAff)
-import Math (floor, sin)
 import Prelude hiding (top)
 
 data Query a = Tick a
@@ -63,10 +61,3 @@ setInterval :: forall e a. Int -> Aff e a -> Aff e Unit
 setInterval ms a = later' ms $ do
   a
   setInterval ms a
-
-
-type Seed = Number
-
-random' :: Seed -> Tuple Number Seed
-random' seed = let x = (sin seed) * 10000.0
-               in Tuple (x - floor x) (seed + 1.0)
