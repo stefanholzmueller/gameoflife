@@ -49,8 +49,7 @@ nextGen neighborsConfig stateChangeConfig population seed = do updatedPopulation
     coordsOfAliveCells = map getCoords (filter isAlive population)
     numberOfAliveNeighbors coords = length (intersect coordsOfAliveCells (neighbors coords))
 
-    nextState (Cell coords state) = do newState <- stateChangeConfig state (numberOfAliveNeighbors coords)
-                                       pure (Cell coords newState)
+    nextState (Cell coords state) seed = case stateChangeConfig state (numberOfAliveNeighbors coords) seed of (Tuple seed' newCellState) -> Tuple seed' (Cell coords newCellState)
 
     populationCoords = map getCoords population
     neighboringCoords = difference (nub (populationCoords >>= neighbors)) populationCoords
