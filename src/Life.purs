@@ -5,7 +5,6 @@ import Control.Monad.State (get, put, State)
 import Control.MonadZero (guard)
 import Data.Array (difference, filter, intersect, length, nub)
 import Data.Traversable (traverse)
-import Data.Tuple (Tuple(Tuple))
 import Random (Seed, random')
 
 newtype Coords = Coords { x :: Int, y :: Int }
@@ -13,6 +12,7 @@ data CellState = Alive | Dead Int | Zombie
 data Cell = Cell Coords CellState
 type Population = Array Cell
 type CellContext = Int  -- number of alive neighbors
+type NeighborsConfig = Coords -> Array Coords
 type StateChangeConfig = CellState -> CellContext -> State Seed CellState
 
 derive instance eqCoords :: Eq Coords
@@ -41,23 +41,26 @@ getCoords (Cell coords _) = coords
 gameOfLife :: Population -> State Seed Population
 gameOfLife = nextGen neighbors stateChange
 
-nextGen :: (Coords -> Array Coords) -> StateChangeConfig -> Population -> State Seed Population
-nextGen neighborsConfig stateChangeConfig population seed = do updatedPopulation <- map nextState population
-                                                               neighboringCells <- traverse nextStateInNeighboringCoords neighboringCoords
-                                                               let newAliveCells = filter isAlive neighboringCells
-                                                               pure (updatedPopulation <> newAliveCells)
+nextGen :: NeighborsConfig -> StateChangeConfig -> Population -> State Seed Population
+nextGen neighborsConfig stateChangeConfig population = traverse nextState population
+--do updatedPopulation <- map nextState population
+--                                                               neighboringCells <- traverse nextStateInNeighboringCoords neighboringCoords
+--                                                               let newAliveCells = filter isAlive neighboringCells
+--                                                               pure (updatedPopulation <> newAliveCells)
   where
     coordsOfAliveCells = map getCoords (filter isAlive population)
     numberOfAliveNeighbors coords = length (intersect coordsOfAliveCells (neighbors coords))
 
-    nextState (Tuple seed (Cell coords state)) = case stateChangeConfig state (numberOfAliveNeighbors coords) seed of (Tuple seed' newCellState) -> Tuple seed' (Cell coords newCellState)
+    nextState :: Cell -> State Seed Cell
+    nextState (Cell coords state) = do newState <- stateChangeConfig state (numberOfAliveNeighbors coords)
+                                       pure (Cell coords newState)
 
     populationCoords = map getCoords population
     neighboringCoords = difference (nub (populationCoords >>= neighbors)) populationCoords
 
     nextStateInNeighboringCoords coords = nextState (Cell coords (Dead 0))
 
-neighbors :: Coords -> Array Coords
+neighbors :: NeighborsConfig
 neighbors (Coords { x, y }) = map (\d -> Coords { x: x + d.dx, y: y + d.dy }) directions
   where
     deltas = [ -1, 0, 1 ]

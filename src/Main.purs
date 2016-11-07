@@ -10,13 +10,14 @@ import CSS.Geometry (left, top)
 import CSS.Size (px)
 import Control.Monad.Aff (Aff, later')
 import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Random (RANDOM)
+import Control.Monad.State (runState)
 import Data.Int (toNumber)
+import Data.Tuple (Tuple(Tuple))
 import Halogen.Util (awaitBody, runHalogenAff)
 import Prelude hiding (top)
 
 data Query a = Tick a
-type State = L.Population
+type State = Tuple L.Population Number
 
 cell :: Int -> Int -> L.Cell
 cell x y = L.Cell (L.Coords { x: x, y: y }) L.Alive
@@ -27,31 +28,31 @@ toString (L.Dead _) = "dead"
 toString L.Zombie   = "zombie"
 
 initialState :: State
-initialState = [ cell 2 1, cell 3 2, cell 3 3, cell 2 3, cell 1 3 -- glider
-               , cell 11 2, cell 12 2, cell 13 2 -- blinker
-               , cell 2 11, cell 3 11, cell 2 12, cell 3 12 -- block
-               , cell 31 20, cell 32 20, cell 30 21, cell 31 21, cell 31 22 -- r-pentomino
-               ]
+initialState = Tuple [ cell 2 1, cell 3 2, cell 3 3, cell 2 3, cell 1 3 -- glider
+                     , cell 11 2, cell 12 2, cell 13 2 -- blinker
+                     , cell 2 11, cell 3 11, cell 2 12, cell 3 12 -- block
+                     , cell 31 20, cell 32 20, cell 30 21, cell 31 21, cell 31 22 -- r-pentomino
+                     ]
+                     0.123
 
-ui :: forall eff. H.Component State Query (Aff (random :: RANDOM | eff))
+ui :: forall g. H.Component State Query g
 ui = H.component { render, eval }
   where
     render :: State -> H.ComponentHTML Query
-    render state = HH.div_ (map renderCell state)
+    render (Tuple population _) = HH.div_ (map renderCell population)
       where
-        renderCell (L.Cell (L.Coords {x, y}) state) = HH.div [ HP.class_ $ HC.className $ toString state
-                                                             , HS.style do left $ px $ toNumber $ 32 * x
-                                                                           top $ px $ toNumber $ 32 * y
-                                                             ] []
+        renderCell (L.Cell (L.Coords {x, y}) cellState) = HH.div [ HP.class_ $ HC.className $ toString cellState
+                                                                 , HS.style do left $ px $ toNumber $ 32 * x
+                                                                               top $ px $ toNumber $ 32 * y
+                                                                 ] []
 
-    eval :: Query ~> H.ComponentDSL State Query (Aff (random :: RANDOM | eff))
+    eval :: Query ~> H.ComponentDSL State Query g
     eval (Tick next) = do
-      oldState <- H.get
-      newState <- H.fromEff (L.gameOfLife oldState)
-      H.set newState
+      (Tuple oldPopulation oldSeed) <- H.get
+      H.set (runState (L.gameOfLife oldPopulation) oldSeed)
       pure next
 
-main :: forall eff. Eff (H.HalogenEffects (random :: RANDOM | eff)) Unit
+main :: Eff (H.HalogenEffects ()) Unit
 main = runHalogenAff do
   body <- awaitBody
   driver <- H.runUI ui initialState body
