@@ -42,22 +42,22 @@ gameOfLife :: Population -> State Seed Population
 gameOfLife = nextGen neighbors stateChange
 
 nextGen :: NeighborsConfig -> StateChangeConfig -> Population -> State Seed Population
-nextGen neighborsConfig stateChangeConfig population = traverse nextState population
---do updatedPopulation <- map nextState population
---                                                               neighboringCells <- traverse nextStateInNeighboringCoords neighboringCoords
---                                                               let newAliveCells = filter isAlive neighboringCells
---                                                               pure (updatedPopulation <> newAliveCells)
+nextGen neighborsConfig stateChangeConfig population = do updatedPopulation <- traverse nextState population
+                                                          neighboringCells <- traverse nextStateInNeighboringCoords neighboringCoords
+                                                          let newAliveCells = filter isAlive neighboringCells
+                                                          pure (updatedPopulation <> newAliveCells)
+
   where
     coordsOfAliveCells = map getCoords (filter isAlive population)
     numberOfAliveNeighbors coords = length (intersect coordsOfAliveCells (neighbors coords))
 
     nextState :: Cell -> State Seed Cell
-    nextState (Cell coords state) = do newState <- stateChangeConfig state (numberOfAliveNeighbors coords)
-                                       pure (Cell coords newState)
+    nextState (Cell coords state) = map (\newState -> Cell coords newState) (stateChangeConfig state (numberOfAliveNeighbors coords))
 
     populationCoords = map getCoords population
     neighboringCoords = difference (nub (populationCoords >>= neighbors)) populationCoords
 
+    nextStateInNeighboringCoords :: Coords -> State Seed Cell
     nextStateInNeighboringCoords coords = nextState (Cell coords (Dead 0))
 
 neighbors :: NeighborsConfig
