@@ -2,10 +2,12 @@ module Test.Main where
 
 import Prelude
 import Life as L
-import Control.Monad.Eff.Unsafe (unsafePerformEff)
-import Data.Array (length)
+import Data.Array (length, partition)
 import Data.Foldable (all, elem)
-import Test.QuickCheck (assertEquals, quickCheck', quickCheck, QC)
+import Data.Int (toNumber)
+import Data.List.Lazy (drop, iterate, take, toUnfoldable)
+import Random (random')
+import Test.QuickCheck (quickCheck', quickCheck, QC)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
 import Test.QuickCheck.Gen (chooseInt)
 
@@ -20,7 +22,9 @@ main :: forall eff. QC eff Unit
 main = do
        quickCheck everyCellHasEightNeighbors
        quickCheck aCellsNeighborHasNeighborsContainingTheCell
-       quickCheck' 1 gliderInFifthGeneration
+       quickCheck randomCycledHasCorrectRange
+       quickCheck randomCycledHasCorrectRange
+       quickCheck' 1 randomIsUniformlyDistributed
   where
     everyCellHasEightNeighbors (RandomCoords coords) =
         length (L.neighbors coords) == 8
@@ -31,9 +35,17 @@ main = do
           let ns = L.neighbors n
           pure (elem coords ns)
 
-    gliderInFifthGeneration (RandomCoords _) = assertEquals gen5 gen5
-      where
-        cell x y = L.Cell (L.Coords { x: x, y: y }) L.Alive
-        initial = [ cell 2 1, cell 3 2, cell 3 3, cell 2 3, cell 1 3 ]
-        gen4 = unsafePerformEff ((L.gameOfLife initial) >>= L.gameOfLife >>= L.gameOfLife >>= L.gameOfLife)
-        gen5 = unsafePerformEff (L.gameOfLife gen4)
+    randomHasCorrectRange (initial :: Number) =
+        let r = random' initial
+        in r >= 0.0 && r < 1.0
+
+    randomCycledHasCorrectRange (initial :: Number) =
+        let r = random' (random' initial)
+        in r >= 0.0 && r < 1.0
+
+    randomIsUniformlyDistributed (initial :: Number) =
+        let rs = take 500 (drop 1 (iterate random' initial))
+            p  = partition (\r -> r < 0.5) (toUnfoldable rs)
+            quota = toNumber (length p.yes) / (toNumber (length p.no))
+            ratio = if quota < 1.0 then 1.0 / quota else quota
+        in ratio <= 1.1
