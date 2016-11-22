@@ -9,22 +9,23 @@ import Random (Seed, random')
 
 newtype Coords = Coords { x :: Int, y :: Int }
 data CellState = Alive | Dead Int | Zombie
-data Cell = Cell Coords CellState
+newtype Cell = Cell { coords :: Coords, state :: CellState }
 type Population = Array Cell
-type CellContext = Int  -- number of alive neighbors
 type NeighborsConfig = Coords -> Array Coords
+type CellContext = Int  -- number of alive neighbors
 type StateChangeConfig = CellState -> CellContext -> State Seed CellState
 
 derive instance eqCoords :: Eq Coords
+derive instance eqCellState :: Eq CellState
 
 instance showCoords :: Show Coords
   where show (Coords { x, y }) = "(" <> show x <> ", " <> show y <> ")"
 
 instance eqCell :: Eq Cell
-  where eq (Cell c1 s1) (Cell c2 s2) = c1 == c2
+  where eq (Cell c1) (Cell c2) = c1.coords == c2.coords
 
 instance showCell :: Show Cell
-  where show (Cell coords state) = (show state) <> show coords
+  where show (Cell { coords, state }) = (show state) <> (show coords)
 
 instance showCellState :: Show CellState
   where show Alive        = "Alive"
@@ -32,11 +33,10 @@ instance showCellState :: Show CellState
         show Zombie       = "ZOMBIE"
 
 isAlive :: Cell -> Boolean
-isAlive (Cell _ Alive) = true
-isAlive (Cell _ _)     = false
+isAlive (Cell { coords, state }) = state == Alive
 
 getCoords :: Cell -> Coords
-getCoords (Cell coords _) = coords
+getCoords (Cell cell) = cell.coords
 
 gameOfLife :: Population -> State Seed Population
 gameOfLife = nextGen neighbors stateChange
@@ -52,13 +52,13 @@ nextGen neighborsConfig stateChangeConfig population = do updatedPopulation <- t
     numberOfAliveNeighbors coords = length (intersect coordsOfAliveCells (neighbors coords))
 
     nextState :: Cell -> State Seed Cell
-    nextState (Cell coords state) = map (\newState -> Cell coords newState) (stateChangeConfig state (numberOfAliveNeighbors coords))
+    nextState (Cell { coords, state }) = map (\newState -> Cell { coords, state: newState }) (stateChangeConfig state (numberOfAliveNeighbors coords))
 
     populationCoords = map getCoords population
     neighboringCoords = difference (nub (populationCoords >>= neighbors)) populationCoords
 
     nextStateInNeighboringCoords :: Coords -> State Seed Cell
-    nextStateInNeighboringCoords coords = nextState (Cell coords (Dead 0))
+    nextStateInNeighboringCoords coords = nextState (Cell { coords, state: (Dead 0) })
 
 neighbors :: NeighborsConfig
 neighbors (Coords { x, y }) = map (\d -> Coords { x: x + d.dx, y: y + d.dy }) directions
