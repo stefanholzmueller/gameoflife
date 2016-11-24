@@ -9,16 +9,19 @@ import Life as L
 import CSS.Geometry (left, top)
 import CSS.Size (px)
 import Control.Monad.Aff (Aff, later')
+import Control.Monad.Aff.Console (log)
 import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Random (RANDOM)
 import Control.Monad.Writer (runWriterT)
 import Data.Int (toNumber)
-import Data.Tuple (snd, fst)
+import Data.Tuple (fst, snd)
 import Halogen.Util (awaitBody, runHalogenAff)
 import Prelude hiding (top)
 
 data Query a = Tick a
 type State = L.Population
+type LifeEffects eff = H.HalogenEffects (console :: CONSOLE, random :: RANDOM | eff)
 
 cell :: Int -> Int -> L.Cell
 cell x y = L.Cell (L.Coords { x: x, y: y }) L.Alive
@@ -35,7 +38,7 @@ initialState = [ cell 2 1, cell 3 2, cell 3 3, cell 2 3, cell 1 3 -- glider
                , cell 31 20, cell 32 20, cell 30 21, cell 31 21, cell 31 22 -- r-pentomino
                ]
 
-ui :: forall eff. H.Component State Query (Aff (random :: RANDOM | eff))
+ui :: forall eff. H.Component State Query (Aff (LifeEffects eff))
 ui = H.component { render, eval }
   where
     render :: State -> H.ComponentHTML Query
@@ -46,17 +49,16 @@ ui = H.component { render, eval }
                                                                            top $ px $ toNumber $ 32 * y
                                                              ] []
 
-    eval :: Query ~> H.ComponentDSL State Query (Aff (random :: RANDOM | eff))
+    eval :: Query ~> H.ComponentDSL State Query (Aff (LifeEffects eff))
     eval (Tick next) = do
       oldState <- H.get
-      let tuple = runWriterT (L.gameOfLife oldState)
-      let stateEff = map fst tuple
-      let log = map snd tuple
-      newState <- H.fromEff stateEff
+      tuple <- H.fromEff (runWriterT (L.gameOfLife oldState))
+      --log (snd tuple)
+      let newState = fst tuple
       H.set newState
       pure next
 
-main :: forall eff. Eff (H.HalogenEffects (random :: RANDOM | eff)) Unit
+main :: Eff (LifeEffects ()) Unit
 main = runHalogenAff do
   body <- awaitBody
   driver <- H.runUI ui initialState body
