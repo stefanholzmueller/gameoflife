@@ -11,7 +11,9 @@ import CSS.Size (px)
 import Control.Monad.Aff (Aff, later')
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Random (RANDOM)
+import Control.Monad.Writer (runWriterT)
 import Data.Int (toNumber)
+import Data.Tuple (snd, fst)
 import Halogen.Util (awaitBody, runHalogenAff)
 import Prelude hiding (top)
 
@@ -47,7 +49,10 @@ ui = H.component { render, eval }
     eval :: Query ~> H.ComponentDSL State Query (Aff (random :: RANDOM | eff))
     eval (Tick next) = do
       oldState <- H.get
-      newState <- H.fromEff (L.gameOfLife oldState)
+      let tuple = runWriterT (L.gameOfLife oldState)
+      let stateEff = map fst tuple
+      let log = map snd tuple
+      newState <- H.fromEff stateEff
       H.set newState
       pure next
 

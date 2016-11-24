@@ -1,8 +1,10 @@
 module Life where
 
 import Prelude
+import Control.Monad.Cont (lift)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Random (randomRange, RANDOM)
+import Control.Monad.Writer (tell, WriterT)
 import Control.MonadZero (guard)
 import Data.Array (difference, filter, intersect, length, nub)
 import Data.Traversable (traverse)
@@ -12,9 +14,11 @@ data CellState = Alive | Dead Int | Zombie
 data Cell = Cell Coords CellState
 type Population = Array Cell
 type CellContext = Int  -- number of alive neighbors
-type StateChangeConfig eff = CellState -> CellContext -> Eff (random :: RANDOM | eff) CellState
+type StateChangeConfig = CellState -> CellContext -> LifeMonad CellState
+type LifeMonad a = forall eff. WriterT String (Eff (random :: RANDOM | eff)) a
 
 derive instance eqCoords :: Eq Coords
+derive instance eqCellState :: Eq CellState
 
 instance showCoords :: Show Coords
   where show (Coords { x, y }) = "(" <> show x <> ", " <> show y <> ")"
@@ -30,11 +34,6 @@ instance showCellState :: Show CellState
         show (Dead since) = "Dead" <> show since
         show Zombie       = "ZOMBIE"
 
---instance showPopulation :: Show Population
---  where show population =
---   where
---     coordsOfAliveCells = map getCoords (filter isAlive population)
-
 isAlive :: Cell -> Boolean
 isAlive (Cell _ Alive) = true
 isAlive (Cell _ _)     = false
@@ -42,10 +41,10 @@ isAlive (Cell _ _)     = false
 getCoords :: Cell -> Coords
 getCoords (Cell coords _) = coords
 
-gameOfLife :: forall eff. Population -> Eff (random :: RANDOM | eff) Population
+gameOfLife :: Population -> LifeMonad Population
 gameOfLife = nextGen neighbors stateChange
 
-nextGen :: forall eff. (Coords -> Array Coords) -> StateChangeConfig eff -> Population -> Eff (random :: RANDOM | eff) Population
+nextGen :: (Coords -> Array Coords) -> StateChangeConfig -> Population -> LifeMonad Population
 nextGen neighborsConfig stateChangeConfig population = do updatedPopulation <- traverse nextState population
                                                           neighboringCells <- traverse nextStateInNeighboringCoords neighboringCoords
                                                           let newAliveCells = filter isAlive neighboringCells
@@ -71,11 +70,14 @@ neighbors (Coords { x, y }) = map (\d -> Coords { x: x + d.dx, y: y + d.dy }) di
                     guard (dx /= 0 || dy /= 0)
                     pure { dx, dy }
 
-stateChange :: forall eff. StateChangeConfig eff
+stateChange :: StateChangeConfig
 stateChange Alive n | n == 2 || n == 3  = pure Alive
                     | otherwise         = pure (Dead 0)
 stateChange (Dead since) n | n == 3     = pure Alive
-                           | since == 1 = map (\r -> if r < 0.3 then Zombie else Dead (since+1)) (randomRange 0.0 1.0)
+                           | since == 1 = do r <- lift (randomRange 0.0 1.0)
+                                             let cs = if r < 0.3 then Zombie else Dead (since+1)
+                                             tell (if cs == Zombie then "Z" else "")
+                                             pure cs
                            | otherwise  = pure (Dead (since+1))
 stateChange Zombie n | n > 3            = pure (Dead 0)
                      | otherwise        = pure Zombie
