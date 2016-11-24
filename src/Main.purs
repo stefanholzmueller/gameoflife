@@ -9,10 +9,10 @@ import Life as L
 import CSS.Geometry (left, top)
 import CSS.Size (px)
 import Control.Monad.Aff (Aff, later')
-import Control.Monad.Aff.Console (log)
 import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (CONSOLE)
+import Control.Monad.Eff.Console (CONSOLE, log)
 import Control.Monad.Eff.Random (RANDOM)
+import Control.Monad.Eff.Unsafe (unsafePerformEff)
 import Control.Monad.Writer (runWriterT)
 import Data.Int (toNumber)
 import Data.Tuple (fst, snd)
@@ -24,7 +24,7 @@ type State = L.Population
 type LifeEffects eff = H.HalogenEffects (console :: CONSOLE, random :: RANDOM | eff)
 
 cell :: Int -> Int -> L.Cell
-cell x y = L.Cell (L.Coords { x: x, y: y }) L.Alive
+cell x y = L.Cell (L.Coords { x, y }) L.Alive
 
 toString :: L.CellState -> String
 toString L.Alive    = "alive"
@@ -53,7 +53,8 @@ ui = H.component { render, eval }
     eval (Tick next) = do
       oldState <- H.get
       tuple <- H.fromEff (runWriterT (L.gameOfLife oldState))
-      --log (snd tuple)
+      let message = snd tuple
+      pure $ unsafePerformEff (log message)
       let newState = fst tuple
       H.set newState
       pure next
