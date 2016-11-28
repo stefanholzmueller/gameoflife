@@ -12,7 +12,6 @@ import Control.Monad.Aff (Aff, later')
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE, log)
 import Control.Monad.Eff.Random (RANDOM)
-import Control.Monad.Eff.Unsafe (unsafePerformEff)
 import Control.Monad.Writer (runWriterT)
 import Data.Int (toNumber)
 import Data.Tuple (fst, snd)
@@ -54,7 +53,7 @@ ui = H.component { render, eval }
       oldState <- H.get
       tuple <- H.fromEff (runWriterT (L.gameOfLife oldState))
       let message = snd tuple
-      pure $ unsafePerformEff (log message)
+      H.fromEff (log message)
       let newState = fst tuple
       H.set newState
       pure next

@@ -48,6 +48,9 @@ nextGen :: (Coords -> Array Coords) -> StateChangeConfig -> Population -> LifeMo
 nextGen neighborsConfig stateChangeConfig population = do updatedPopulation <- traverse nextState population
                                                           neighboringCells <- traverse nextStateInNeighboringCoords neighboringCoords
                                                           let newAliveCells = filter isAlive neighboringCells
+                                                          let newPopulation = updatedPopulation <> newAliveCells
+                                                          let aliveCellCount = length (filter isAlive newPopulation)
+                                                          tell ("\ncurrent population: " <> show aliveCellCount)
                                                           pure (updatedPopulation <> newAliveCells)
   where
     coordsOfAliveCells = map getCoords (filter isAlive population)
